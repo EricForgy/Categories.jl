@@ -1,0 +1,7 @@
+name = "Categories"
+uuid = "0937f221-6f58-47de-a382-e03b10172b5a"
+authors = ["Eric Forgy <Eric.Forgy@cavalre.com>"]
+version = "0.1.0"
+
+[deps]
+TensorAlgebra = "84c0c5c2-3611-43dd-b4f2-3e690a28d148"
