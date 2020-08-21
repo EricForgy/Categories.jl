@@ -1,72 +1,104 @@
 module Categories
 
-export Category, Ob, Morphism, Hom, category, label, domain, codomain, compose
+export Category, Object, Morphism, Composition, category, ob, hom, id, label, domain, codomain, compose
 
-# struct Category{O,L} end
-# Category(L,::Type{O}) where {O} = Category{O,L}
-
-# obtype(::Category{O}) where {O} = O
-# label(::Category{O,L}) where {O,L} = L
-
-struct Object{O,N,L}
-    object::NTuple{N,O}
+struct Object{O}
+    object::O
 end
 
-struct Morphism{O,N,L}
-    morphism::NTuple{N,<:Function}
+obtype(::Object{O}) where {O} = O
+
+abstract type AbstractMorphism{O,M} end
+
+obtype(::AbstractMorphism{O}) where {O} = O
+
+homtype(::AbstractMorphism{O,M}) where {O,M} = M
+
+struct Id{O,M} <: AbstractMorphism{O,M} end
+(id::Id{O})(x::O) where {O} = x
+
+struct Morphism{O,M} <: AbstractMorphism{O,M}
+    morphism::M
     domain::Object{O}
     codomain::Object{O}
 end
-Morphism(dom::Object{O},codom::Object{O},L) where {O} = Morphism{O,L}(dom,codom)
 
-id(obj::Object) = obj
+morphism(m::Morphism) = m.morphism
 
-struct Category{O,L}
-    ob::Type{<:Object{O}}
-    hom::Type{<:Morphism{O}}
+domain(m::Morphism) = m.domain
+
+codomain(m::Morphism) = m.codomain
+
+struct Composition{O,M,N} <: AbstractMorphism{O,M}
+    morphisms::NTuple{N,Morphism{O,M}}
 end
 
-# struct Ob{O,N} 
-#     object::NTuple{N,<:Object{O}}
-# end
-# Ob(::Type{C},ob::NTuple{N,O}) where {N,O,C<:Category{O}} = Ob{O,C,N}(ob)
-# Ob(::Type{C},ob::O) where {O,C<:Category{O}} = Ob{O,C,1}((ob,))
-# Ob(::Type{C}) where {O,C<:Category{O}} = Ob{O,C}
+domain(c::Composition) = first(c.morphisms).domain
 
-# struct Hom{O,C<:Category{O},N}
-#     morphism::NTuple{N,<:Morphism{O}}
-# end
+codomain(c::Composition) = last(c.morphisms).codomain
 
-# obtype(::Ob{O}) where {O} = O
-# category(::Ob{O,C}) where {O,C} = C
-# nproducts(::Ob{O,C,N}) where {O,C,N} = N
+struct Category{O,M}
+    ob::Type{Object{O}}
+    hom::Type{Morphism{O,M}}
+    id::Id{O,M}
+end
 
-# function morphism end
+Category(::Type{O},::Type{M}) where {O,M} = Category{O,M}(Object{O},Morphism{O,M},Id{O,M}())
 
-# struct Hom{O,C<:Category{O},N}
-#     morphism::NTuple{N,<:Morphism{O}}
-# end
+ob(C::Category) = C.ob
 
+hom(C::Category)= C.hom
 
-# # Hom(dom::Ob{O,C},codom::Ob{O,C},m::NTuple{N,<:Morphism}) where {O,C,N} = Hom{(dom,codom),C,N}(dom,codom,m)
-# Hom(dom::Ob{O,C},codom::Ob{O,C},L::Symbol) where {O,C} = Hom{O,C,1}((Morphism(dom,codom,L),))
-# Hom(dom::Ob{O,C},codom::Ob{O,C}) where {O,C} = Hom{(dom,codom)}
-# Hom(::C) where {O,C<:Category{O}} = Hom{O,C}
+id(C::Category) = C.id
 
-# category(::Hom{C}) where {C} = C
-# domain(::Hom{C,T}) where {C,T} = T[1]
-# codomain(::Hom{C,T}) where {C,T} = T[2]
-# label(::Hom{C,T,L}) where {C,T,L} = L
+Base.in(::Object{O1}, ::Type{Object{O2}}) where {O1,O2} = O1 <: O2
 
-# function compose(::Hom{C,T1,L1},::Hom{C,T2,L2}) where {C,T1,T2,L1,L2}
-#     T1[2] == T2[1] || error("Domain mismath")
-#     return Hom{C,(T1[1],T2[2]),(L1...,L2...)}()
-# end
+Base.in(::AbstractMorphism{O1,M1}, ::Type{Morphism{O2,M2}}) where {O1,O2,M1,M2} = (O1 <: O2) && (M1 <: M2)
 
-# Base.in(::Ob{C1},::Type{<:Ob{C2}}) where {C1<:Category,C2<:Category} = C1 === C2
+Base.in(::AbstractMorphism{O1,M1}, ::Object{O2}, ::Object{O2}) where {O1,O2,M1,M2} = (O1 <: O2) && (M1 <: M2)
 
-# Base.in(::Hom{C1,T1},::Type{<:Hom{C2,T2}}) where {C1<:Category,C2<:Category,T1,T2} = (C1 === C2) && (T1 === T2)
+function compose(m1::Morphism{O,M},m2::Morphism{O,M}) where {O,M}
+    m1.codomain === m2.domain || error("Domain mismatch")
+    return Composition((m1,m2))
+end
 
-# Base.in(::Hom{C1},::Type{<:Hom{C2}}) where {C1<:Category,C2<:Category} = (C1 === C2)
+function compose(m::Morphism{O,M},c::Composition{O,M}) where {O,M}
+    m.codomain === domain(c) || error("Domain mismatch")
+    Composition((m,c.morphisms...))
+end
+
+function compose(c::Composition{O,M},m::Morphism{O,M}) where {O,M}
+    codomain(c) === m.domain || error("Domain mismatch")
+    Composition((c.morphisms...,m))
+end
+
+compose(m::AbstractMorphism{O,M},::Id{O,M}) where {O,M} = m
+
+compose(::Id{O,M},m::AbstractMorphism{O,M}) where {O,M} = m
+
+Base.:∘(m1::AbstractMorphism,m2::AbstractMorphism) = compose(m1,m2)
+
+function (comp::Composition{O})(x::O) where {O}
+    domain(comp).object === x || error("Domain mismatch")
+    for mor in comp.morphisms
+        x = mor(x)
+    end
+    return x
+end
+
+Base.show(io::IO, obj::Object) = print(io, obj.object)
+
+Base.show(io::IO, mor::Morphism) = print(io, mor.morphism, ": ", mor.domain," → ", mor.codomain)
+
+function Base.show(io::IO, comp::Composition)
+    print(
+        io,
+        join(morphism.(comp.morphisms)," ∘ "),
+        ": ",
+        domain(first(comp.morphisms)),
+        " → ",
+        codomain(last(comp.morphisms))
+    )
+end
 
 end # module
