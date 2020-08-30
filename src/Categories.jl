@@ -1,6 +1,6 @@
 module Categories
 
-export Category, Object, Morphism, Composition, category, ob, hom, id, label, domain, codomain, compose
+export Category, Object, Morphism, Composition, Ob, Hom, category, id, label, domain, codomain, compose
 
 struct Object{O}
     object::O
@@ -37,17 +37,28 @@ domain(c::Composition) = first(c.morphisms).domain
 
 codomain(c::Composition) = last(c.morphisms).codomain
 
+struct Hom{O,M}
+    domain::Object{O}
+    codomain::Object{O}
+end
+
+domain(hom::Hom) = hom.domain
+
+codomain(hom::Hom) = hom.codomain
+
 struct Category{O,M}
     ob::Type{Object{O}}
     hom::Type{Morphism{O,M}}
     id::Id{O,M}
+
+    Category(::Type{O},::Type{M}) where {O,M} = new{O,M}(Object{O},Morphism{O,M},Id{O,M}())
 end
 
-Category(::Type{O},::Type{M}) where {O,M} = Category{O,M}(Object{O},Morphism{O,M},Id{O,M}())
+Ob(C::Category) = C.ob
 
-ob(C::Category) = C.ob
+Hom(C::Category)= C.hom
 
-hom(C::Category)= C.hom
+Hom(::Category{O,M},X::Object{O},Y::Object{O}) where {O,M} = Hom{O,M}(X,Y)
 
 id(C::Category) = C.id
 
@@ -55,7 +66,12 @@ Base.in(::Object{O1}, ::Type{Object{O2}}) where {O1,O2} = O1 <: O2
 
 Base.in(::AbstractMorphism{O1,M1}, ::Type{Morphism{O2,M2}}) where {O1,O2,M1,M2} = (O1 <: O2) && (M1 <: M2)
 
-Base.in(::AbstractMorphism{O1,M1}, ::Object{O2}, ::Object{O2}) where {O1,O2,M1,M2} = (O1 <: O2) && (M1 <: M2)
+function Base.in(m::AbstractMorphism{O1,M1}, hom::Hom{O2,M2}) where {O1,O2,M1,M2}
+    (O1 <: O2) && 
+    (M1 <: M2) && 
+    (domain(m) === domain(hom)) && 
+    (codomain(m) === codomain(hom))
+end
 
 function compose(m1::Morphism{O,M},m2::Morphism{O,M}) where {O,M}
     m1.codomain === m2.domain || error("Domain mismatch")

@@ -1,15 +1,9 @@
 using Categores, Test
 
 function setup(::Type{K}=Float64) where {K}
-    A = Category(:A)
-    B = Category(:B)
-    C = Category(:C)
-    D = Category(:D)
+    A,B,C,D = Category.([:A,:B,:C,:D],Symbol)
 
-    W = Ob(:W,A)
-    X = Ob(:X,B)
-    Y = Ob(:Y,C)
-    Z = Ob(:Z,D)
+    W,X,Y,Z = Ob.([A,B,C,D],[:W,:X,:Y,:Z])
 
     f = Hom(:f,W,X)
     g = Hom(:g,X,Y)
